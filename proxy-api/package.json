@@ -1,0 +1,39 @@
+{
+  "name": "subgraph-proxy",
+  "version": "1.0.0",
+  "description": "Reverse proxy for graphql subgraphs that provides correctness guarantees",
+  "main": "src/app.js",
+  "scripts": {
+    "start": "node ./src/app.js",
+    "docker": "./docker/build.sh local && ./docker/start.sh local 3001",
+    "docker:stop": "./docker/stop.sh local",
+    "test": "jest",
+    "debug": "node --inspect ./src/app.js",
+    "prettier": "prettier --write ."
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "setupFiles": [
+      "<rootDir>/test/jest.setup.js"
+    ]
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@koa/cors": "^5.0.0",
+    "axios": "^1.7.4",
+    "bottleneck": "^2.19.5",
+    "dotenv": "^16.4.5",
+    "ethers": "^6.13.2",
+    "graphql-request": "^6.1.0",
+    "koa": "^2.15.3",
+    "koa-bodyparser": "^4.4.1",
+    "koa-router": "^12.0.1",
+    "node-cron": "^3.0.3"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "prettier": "^3.3.3"
+  }
+}

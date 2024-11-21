@@ -1,0 +1,30 @@
+{
+  "version": {
+    "subgraphName": "bean",
+    "versionNumber": "2.3.0",
+    "chain": "ethereum"
+  },
+  "beanCrosses": [
+    {
+      "id": "0"
+    },
+    {
+      "id": "1"
+    },
+    {
+      "id": "10"
+    },
+    {
+      "id": "100"
+    },
+    {
+      "id": "1000"
+    }
+  ],
+  "_meta": {
+    "block": {
+      "number": 20581045
+    },
+    "deployment": "QmXXZrhjqb4ygSWVgkPYBWJ7AzY4nKEUqiN5jnDopWBSCD"
+  }
+}

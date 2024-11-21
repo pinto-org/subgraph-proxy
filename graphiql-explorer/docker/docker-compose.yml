@@ -1,0 +1,9 @@
+services:
+  graphiql:
+    build:
+      context: ../
+      dockerfile: docker/Dockerfile
+    image: graphiql-explorer:${DOCKER_ENV}
+    ports:
+      - "4000:4000"
+    restart: on-failure

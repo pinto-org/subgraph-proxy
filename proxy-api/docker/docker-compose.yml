@@ -1,0 +1,11 @@
+services:
+  koajs:
+    build:
+      context: ../  # Context is set to the project root
+      dockerfile: docker/Dockerfile
+    image: subgraph-proxy:${DOCKER_ENV}
+    ports:
+      - "${PROXY_PORT}:3001"
+    env_file:
+      - .env
+    restart: on-failure

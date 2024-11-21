@@ -1,0 +1,11 @@
+node_modules
+public
+.parcel-cache
+docker
+.DS_Store
+.git
+.gitignore
+npm-debug.log
+.env
+
+!docker/inbuilt
