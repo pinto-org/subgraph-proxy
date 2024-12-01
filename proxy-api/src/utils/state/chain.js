@@ -1,6 +1,7 @@
 const EvmProviders = require('../../datasources/evm-providers');
 
-const BLOCK_REFRESH_FREQUENCY = 1000;
+// Acceptable if the chain head remains within 5 blocks
+const BLOCK_REFRESH_FREQUENCY = 5000;
 
 class ChainState {
   // Latest block available on the chain
@@ -11,6 +12,7 @@ class ChainState {
   static async getChainHead(chain) {
     if (!this.lastChainHeadTime[chain] || new Date() - this.lastChainHeadTime[chain] > BLOCK_REFRESH_FREQUENCY) {
       this.chainHeads[chain] = await EvmProviders.providerForChain(chain).getBlockNumber();
+      this.lastChainHeadTime[chain] = new Date();
     }
     return this.chainHeads[chain];
   }
