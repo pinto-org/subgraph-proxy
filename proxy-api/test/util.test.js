@@ -111,5 +111,17 @@ describe('Utils', () => {
       expect(GraphqlQueryUtil._includesVersion('version(id: "subgraph") {')).toEqual(true);
       expect(GraphqlQueryUtil._includesVersion('a  version\n(   id: \n\n"subgraph"){')).toEqual(true);
     });
+
+    test('Identifies introspection queries', () => {
+      expect(GraphqlQueryUtil.minNeededBlock(`{__schema{...}}`)).toEqual(0);
+      expect(
+        GraphqlQueryUtil.minNeededBlock(`{
+          __type
+          {...}
+        }`)
+      ).toEqual(0);
+      expect(GraphqlQueryUtil.minNeededBlock(`{beanstalks{id}}`)).toEqual(Number.MAX_SAFE_INTEGER);
+      expect(GraphqlQueryUtil.minNeededBlock(`{beanstalks{id}} {__schema{...}}`)).toEqual(0);
+    });
   });
 });

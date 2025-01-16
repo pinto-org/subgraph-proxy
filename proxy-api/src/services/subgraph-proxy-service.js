@@ -74,7 +74,7 @@ class SubgraphProxyService {
     subgraphName,
     query,
     variables,
-    minBlock,
+    minIndexedBlock,
     failedEndpoints,
     unsyncdEndpoints,
     staleVersionEndpoints,
@@ -118,7 +118,7 @@ class SubgraphProxyService {
         // Avoid endpoints that are out of sync unless it is explicitly allowable
         if (
           !EnvUtil.allowUnsyncd() &&
-          queryResult._meta.block.number < minBlock &&
+          queryResult._meta.block.number < minIndexedBlock &&
           !(await SubgraphState.isInSync(endpointIndex, subgraphName))
         ) {
           unsyncdEndpoints.push(endpointIndex);
