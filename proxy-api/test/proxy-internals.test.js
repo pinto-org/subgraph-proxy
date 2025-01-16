@@ -21,7 +21,8 @@ const newDeploymentBlock = beanNewDeploymentResponse._meta.block.number;
 
 // For capturing arguments to EndpointBalanceUtil.chooseEndpoint
 let endpointArgCapture;
-const _getQueryResult = () => SubgraphProxyService._getQueryResult('bean', 'graphql query', undefined, 9999999999);
+const _getQueryResult = (minBlock = 9999999999) =>
+  SubgraphProxyService._getQueryResult('bean', 'graphql query', undefined, minBlock);
 
 describe('Subgraph Proxy - Core', () => {
   beforeEach(() => {
@@ -134,17 +135,33 @@ describe('Subgraph Proxy - Core', () => {
       expect(EndpointBalanceUtil.chooseEndpoint).toHaveBeenCalledTimes(2);
       expect(endpointArgCapture[1]).toEqual(['bean', [0], [0], null]);
     });
-    test('Both endpoints are out of sync', async () => {
-      jest
-        .spyOn(SubgraphClients, 'makeCallableClient')
-        .mockResolvedValueOnce(async () => beanNewDeploymentResponse)
-        .mockResolvedValueOnce(async () => beanNewDeploymentResponse);
+    describe('Both endpoints are out of sync', () => {
+      beforeEach(() => {
+        jest.spyOn(SubgraphClients, 'makeCallableClient').mockResolvedValue(async () => beanNewDeploymentResponse);
+      });
+      afterEach(() => {
+        jest.spyOn(EnvUtil, 'allowUnsyncd').mockReturnValue(false);
+      });
+      test('Rejects', async () => {
+        await expect(_getQueryResult()).rejects.toThrow(EndpointError);
 
-      await expect(_getQueryResult()).rejects.toThrow(EndpointError);
+        expect(EndpointBalanceUtil.chooseEndpoint).toHaveBeenCalledTimes(3);
+        expect(endpointArgCapture[1]).toEqual(['bean', [0], [0], null]);
+        expect(endpointArgCapture[2]).toEqual(['bean', [0, 1], [0, 1], null]);
+      });
+      test('Resolves on env bypass', async () => {
+        jest.spyOn(EnvUtil, 'allowUnsyncd').mockReturnValue(true);
+        await expect(_getQueryResult()).resolves.not.toThrow();
 
-      expect(EndpointBalanceUtil.chooseEndpoint).toHaveBeenCalledTimes(3);
-      expect(endpointArgCapture[1]).toEqual(['bean', [0], [0], null]);
-      expect(endpointArgCapture[2]).toEqual(['bean', [0, 1], [0, 1], null]);
+        expect(EndpointBalanceUtil.chooseEndpoint).toHaveBeenCalledTimes(1);
+        expect(endpointArgCapture[0]).toEqual(['bean', [], [], null]);
+      });
+      test('Resolves on lower minimum indexed block', async () => {
+        await expect(_getQueryResult(newDeploymentBlock)).resolves.not.toThrow();
+
+        expect(EndpointBalanceUtil.chooseEndpoint).toHaveBeenCalledTimes(1);
+        expect(endpointArgCapture[0]).toEqual(['bean', [], [], null]);
+      });
     });
     describe('Old subgraph version is not accepted', () => {
       beforeEach(() => {
