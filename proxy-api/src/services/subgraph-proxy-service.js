@@ -221,6 +221,7 @@ class SubgraphProxyService {
         throw new RequestError(errors[0].message);
       }
     } else if (unsyncdEndpoints.length > 0) {
+      DiscordUtil.sendWebhookMessage(`Subgraph ${subgraphName} has fallen behind.`);
       throw new EndpointError('Subgraph has not yet indexed up to the latest block.');
     }
   }
