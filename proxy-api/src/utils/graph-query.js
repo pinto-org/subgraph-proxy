@@ -43,6 +43,14 @@ class GraphqlQueryUtil {
     return result;
   }
 
+  // Returns the minimum block that must be indexed for this query to be responded to.
+  // Currently considers introspection only.
+  // Future work includes analyzing individual requested entities and whether they have a block number provided.
+  static minNeededBlock(originalQuery) {
+    // TODO:
+    return 99999999990;
+  }
+
   static _includesMeta(originalQuery) {
     return /_meta\s*\{/.test(originalQuery);
   }

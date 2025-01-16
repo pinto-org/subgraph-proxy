@@ -15,8 +15,9 @@ class SubgraphProxyService {
   // Proxies a subgraph request, accounting for version numbers and indexed blocks
   static async handleProxyRequest(subgraphName, originalQuery, variables) {
     EnvUtil.throwOnInvalidName(subgraphName);
+    const minIndexedBlock = GraphqlQueryUtil.minNeededBlock(originalQuery);
     const queryWithMetadata = GraphqlQueryUtil.addMetadataToQuery(originalQuery);
-    const queryResult = await this._getQueryResult(subgraphName, queryWithMetadata, variables);
+    const queryResult = await this._getQueryResult(subgraphName, queryWithMetadata, variables, minIndexedBlock);
 
     const version = queryResult.version.versionNumber;
     const deployment = queryResult._meta.deployment;
@@ -34,7 +35,7 @@ class SubgraphProxyService {
   }
 
   // Gets the result for this query from one of the available endpoints.
-  static async _getQueryResult(subgraphName, query, variables) {
+  static async _getQueryResult(subgraphName, query, variables, minIndexedBlock) {
     const startTime = new Date();
     const startUtilization = await EndpointBalanceUtil.getSubgraphUtilization(subgraphName);
     const failedEndpoints = [];
@@ -46,6 +47,7 @@ class SubgraphProxyService {
         subgraphName,
         query,
         variables,
+        minIndexedBlock,
         failedEndpoints,
         unsyncdEndpoints,
         staleVersionEndpoints,
@@ -72,6 +74,7 @@ class SubgraphProxyService {
     subgraphName,
     query,
     variables,
+    minBlock,
     failedEndpoints,
     unsyncdEndpoints,
     staleVersionEndpoints,
@@ -112,11 +115,16 @@ class SubgraphProxyService {
           SubgraphState.setEndpointHasErrors(failedIndex, subgraphName, true);
         }
 
-        // Avoid endpoints with issues
-        if (!EnvUtil.allowUnsyncd() && !(await SubgraphState.isInSync(endpointIndex, subgraphName))) {
+        // Avoid endpoints that are out of sync unless it is explicitly allowable
+        if (
+          !EnvUtil.allowUnsyncd() &&
+          queryResult._meta.block.number < minBlock &&
+          !(await SubgraphState.isInSync(endpointIndex, subgraphName))
+        ) {
           unsyncdEndpoints.push(endpointIndex);
           staleVersionEndpoints.length = 0;
           continue;
+          // Avoid stale versions
         } else if (await SubgraphState.isStaleVersion(endpointIndex, subgraphName)) {
           // Note that an old version won't be stale if the newer version failed/is out of sync
           staleVersionEndpoints.push(endpointIndex);
