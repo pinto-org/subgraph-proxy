@@ -21,7 +21,7 @@ const newDeploymentBlock = beanNewDeploymentResponse._meta.block.number;
 
 // For capturing arguments to EndpointBalanceUtil.chooseEndpoint
 let endpointArgCapture;
-const _getQueryResult = (minBlock = 9999999999) =>
+const _getQueryResult = (minBlock = Number.MAX_SAFE_INTEGER) =>
   SubgraphProxyService._getQueryResult('bean', 'graphql query', undefined, minBlock);
 
 describe('Subgraph Proxy - Core', () => {

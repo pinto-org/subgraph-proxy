@@ -47,8 +47,12 @@ class GraphqlQueryUtil {
   // Currently considers introspection only.
   // Future work includes analyzing individual requested entities and whether they have a block number provided.
   static minNeededBlock(originalQuery) {
-    // TODO:
-    return 99999999990;
+    const introspectionRegex = /\s*(?:__schema|__type)\s*{/;
+    if (introspectionRegex.test(originalQuery)) {
+      // Always respond to an introspection request regardless of indexing progress
+      return 0;
+    }
+    return Number.MAX_SAFE_INTEGER;
   }
 
   static _includesMeta(originalQuery) {
