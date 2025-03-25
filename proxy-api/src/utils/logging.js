@@ -56,7 +56,7 @@ class LoggingUtil {
       );
     const historyStrs = requestHistory.map((e) => `${e.index}${e.decision}`);
     const blacklistStrs = blacklist.map((e) => `${e.index}${e.reason}`);
-    const steps = (`Steps[${blacklistStrs.join(',')}]`.padEnd(10) + `: ${historyStrs.join(',')}`).padEnd(25);
+    const steps = (`Steps[${blacklistStrs.join(',')}]`.padEnd(10) + `: ${historyStrs.join(',')}`).padEnd(40);
     const utilization = `Load: ${this._formatUtilizationString(startUtilization)}`;
     return `${new Date().toISOString()} ${type}: ${subgraphAndTime} | ${steps} | ${utilization}`;
   }
