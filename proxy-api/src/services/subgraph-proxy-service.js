@@ -71,12 +71,17 @@ class SubgraphProxyService {
         if (e instanceof RateLimitError) {
           break; // Will likely result in rethrowing a different RateLimitError
         }
-        if (await this._isRetryableBlockException(e, endpointIndex, subgraphName)) {
-          stepRecorder.behindButRetryable(endpointIndex);
-          continue;
-        } else {
-          stepRecorder.failed(endpointIndex);
-          errors.push(e);
+        try {
+          if (await this._isRetryableBlockException(e, endpointIndex, subgraphName)) {
+            stepRecorder.behindButRetryable(endpointIndex);
+            continue;
+          } else {
+            stepRecorder.failed(endpointIndex);
+            errors.push(e);
+          }
+        } catch (e2) {
+          stepRecorder.invalidBlock(endpointIndex);
+          throw e2;
         }
       }
 
@@ -121,26 +126,36 @@ class SubgraphProxyService {
   // Identifies whether the failure is recoverable, due to response being behind an explicitly requested block.
   // There is also a type of block exception where the requested block is earlier than the start of indexing.
   // Sample error messages:
+  // alchemy:
   // "has only indexed up to block number 20580123 and data for block number 22333232 is therefore not yet available"
   // "only has data starting at block number 500 and data for block number 20582045 is therefore not yet available"
+  // dnet:
+  // "Unavailable(missing block: 28068745, latest: 28068741)"
+  // "bad query: bad query: requested block 29, before minimum `startBlock` of manifest 22622961"
   static async _isRetryableBlockException(e, endpointIndex, subgraphName) {
-    const matchFuture = e.message.match(/indexed up to block number \d+ and data for block number (\d+) is therefore/);
+    const matchFuture =
+      e.message.match(/indexed up to block number \d+ and data for block number (\d+) is therefore/) ??
+      e.message.match(/Unavailable\(missing block: (\d+), latest: \d+\)/);
     if (matchFuture) {
       const requestedBlock = parseInt(matchFuture[1]);
       const chain = SubgraphState.getEndpointChain(endpointIndex, subgraphName);
       if (requestedBlock > (await ChainState.getChainHead(chain)) + 5) {
         // User requested a future block. This is not allowed
-        throw new RequestError(`The requested block ${requestedBlock} is invalid for chain ${chain}.`);
+        throw new RequestError(
+          `The requested block ${requestedBlock} is invalid for chain ${chain} (chain head is ${await ChainState.getChainHead(chain)}).`
+        );
       }
       return true;
     }
 
-    const matchPast = e.message.match(
-      /only has data starting at block number (\d+) and data for block number (\d+) is therefore/
-    );
+    const matchPast =
+      e.message.match(/only has data starting at block number (\d+) and data for block number (\d+) is therefore/) ??
+      e.message.match(/bad query: bad query: requested block (\d+), before minimum `startBlock` of manifest (\d+)/);
     if (matchPast) {
-      const earliestBlock = parseInt(matchPast[1]);
-      const requestedBlock = parseInt(matchPast[2]);
+      // Blocks are provided in reverse order for the two endpoint types
+      const blocks = [parseInt(matchPast[1]), parseInt(matchPast[2])];
+      const earliestBlock = Math.min(...blocks);
+      const requestedBlock = Math.max(...blocks);
       throw new RequestError(
         `The requested block ${requestedBlock} is smaller than the earliest accessible block for ${subgraphName}: ${earliestBlock}.`
       );

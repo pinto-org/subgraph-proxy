@@ -35,6 +35,10 @@ class EndpointHistory {
     this.endpointHistory.push({ index, decision: 'w' });
   }
 
+  invalidBlock(index) {
+    this.endpointHistory.push({ index, decision: 'i' });
+  }
+
   getHistoryIndexes() {
     return this.endpointHistory.map((v) => v.index);
   }
