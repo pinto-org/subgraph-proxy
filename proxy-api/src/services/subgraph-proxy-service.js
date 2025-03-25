@@ -10,6 +10,7 @@ const LoggingUtil = require('../utils/logging');
 const EnvUtil = require('../utils/env');
 const DiscordUtil = require('../utils/discord');
 const SubgraphStatusService = require('./subgraph-status-service');
+const EndpointHistory = require('../utils/load/endpoint-history');
 
 class SubgraphProxyService {
   // Proxies a subgraph request, accounting for version numbers and indexed blocks
@@ -38,35 +39,27 @@ class SubgraphProxyService {
   static async _getQueryResult(subgraphName, query, variables, minIndexedBlock) {
     const startTime = new Date();
     const startUtilization = await EndpointBalanceUtil.getSubgraphUtilization(subgraphName);
-    const issueEndpoints = [];
-    const endpointHistory = [];
+    const endpointHistory = new EndpointHistory();
     try {
-      const result = await this._getReliableResult(
-        subgraphName,
-        query,
-        variables,
-        minIndexedBlock,
-        issueEndpoints,
-        endpointHistory
-      );
-      LoggingUtil.logSuccessfulProxy(subgraphName, startTime, startUtilization, endpointHistory, issueEndpoints);
+      const result = await this._getReliableResult(subgraphName, query, variables, minIndexedBlock, endpointHistory);
+      LoggingUtil.logSuccessfulProxy(subgraphName, startTime, startUtilization, endpointHistory);
       return result;
     } catch (e) {
-      LoggingUtil.logFailedProxy(subgraphName, startTime, startUtilization, endpointHistory, issueEndpoints);
+      LoggingUtil.logFailedProxy(subgraphName, startTime, startUtilization, endpointHistory);
       throw e;
     }
   }
 
   // Returns a reliable query result with respect to response consistency and api availability.
-  static async _getReliableResult(subgraphName, query, variables, minIndexedBlock, issueEndpoints, endpointHistory) {
+  static async _getReliableResult(subgraphName, query, variables, minIndexedBlock, stepRecorder) {
     const errors = [];
     const requiredBlock = GraphqlQueryUtil.maxRequestedBlock(query);
     let endpointIndex;
     while (
       (endpointIndex = await EndpointBalanceUtil.chooseEndpoint(
         subgraphName,
-        issueEndpoints.map((v) => v.index),
-        endpointHistory.map((v) => v.index),
+        stepRecorder.getIssueIndexes(),
+        stepRecorder.getHistoryIndexes(),
         requiredBlock
       )) !== -1
     ) {
@@ -79,19 +72,17 @@ class SubgraphProxyService {
           break; // Will likely result in rethrowing a different RateLimitError
         }
         if (await this._isRetryableBlockException(e, endpointIndex, subgraphName)) {
-          endpointHistory.push({ index: endpointIndex, decision: 'b' });
+          stepRecorder.behindButRetryable(endpointIndex);
           continue;
         } else {
-          endpointHistory.push({ index: endpointIndex, decision: 'e' });
-          issueEndpoints.push({ index: endpointIndex, reason: 'f' });
-          issueEndpoints = issueEndpoints.filter((v) => v.reason !== 's');
+          stepRecorder.failed(endpointIndex);
           errors.push(e);
         }
       }
 
       if (queryResult) {
         SubgraphState.updateStatesWithResult(endpointIndex, subgraphName, queryResult);
-        for (const failedIndex of issueEndpoints.filter((v) => v.reason === 'f').map((v) => v.index)) {
+        for (const failedIndex of stepRecorder.getFailedEndpoints()) {
           SubgraphState.setEndpointHasErrors(failedIndex, subgraphName, true);
         }
 
@@ -101,28 +92,28 @@ class SubgraphProxyService {
           queryResult._meta.block.number < minIndexedBlock &&
           !(await SubgraphState.isInSync(endpointIndex, subgraphName))
         ) {
-          endpointHistory.push({ index: endpointIndex, decision: 'u' });
-          issueEndpoints.push({ index: endpointIndex, reason: 'u' });
-          issueEndpoints = issueEndpoints.filter((v) => v.reason !== 's');
+          stepRecorder.unsyncd(endpointIndex);
           continue;
           // Avoid stale versions
         } else if (await SubgraphState.isStaleVersion(endpointIndex, subgraphName)) {
           // Note that an old version won't be stale if the newer version failed/is out of sync
-          endpointHistory.push({ index: endpointIndex, decision: 's' });
-          issueEndpoints.push({ index: endpointIndex, reason: 's' });
+          stepRecorder.stale(endpointIndex);
           continue;
         }
 
         if (queryResult._meta.block.number >= SubgraphState.getLatestBlock(subgraphName)) {
-          endpointHistory.push({ index: endpointIndex, decision: 'a' });
+          stepRecorder.accepted(endpointIndex);
           return queryResult;
         }
         // The endpoint is in sync, but a more recent response had previously been given, either for this endpoint or
         // another. Do not accept this response. A valid response is expected on the next attempt
-        endpointHistory.push({ index: endpointIndex, decision: 'w' });
+        stepRecorder.wobbled(endpointIndex);
+
+        // TODO
+        // Add a brief delay if all endpoints have been tried but the request is not being dropped
       }
     }
-    await this._throwFailureReason(subgraphName, errors, issueEndpoints);
+    await this._throwFailureReason(subgraphName, errors, stepRecorder);
   }
 
   // Identifies whether the failure is recoverable, due to response being behind an explicitly requested block.
@@ -156,11 +147,11 @@ class SubgraphProxyService {
   }
 
   // Throws an exception based on the failure reason
-  static async _throwFailureReason(subgraphName, errors, issueEndpoints) {
+  static async _throwFailureReason(subgraphName, errors, endpointHistory) {
     const [failedEndpoints, unsyncdEndpoints, staleVersionEndpoints] = [
-      issueEndpoints.filter((v) => v.reason === 'f'),
-      issueEndpoints.filter((v) => v.reason === 'u'),
-      issueEndpoints.filter((v) => v.reason === 's')
+      endpointHistory.getFailedEndpoints(),
+      endpointHistory.getUnsyncdEndpoints(),
+      endpointHistory.getStaleEndpoints()
     ];
 
     const endpointsAttempted = failedEndpoints.length + unsyncdEndpoints.length + staleVersionEndpoints.length;
