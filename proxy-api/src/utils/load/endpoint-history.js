@@ -11,7 +11,7 @@ class EndpointHistory {
   }
 
   failed(index) {
-    this.endpointHistory.push({ index, decision: 'e' });
+    this.endpointHistory.push({ index, decision: 'f' });
     this.issueEndpoints.push({ index, reason: 'f' });
     this.issueEndpoints = this.issueEndpoints.filter((v) => v.reason !== 's');
   }
