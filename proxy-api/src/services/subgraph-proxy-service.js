@@ -38,9 +38,7 @@ class SubgraphProxyService {
   static async _getQueryResult(subgraphName, query, variables, minIndexedBlock) {
     const startTime = new Date();
     const startUtilization = await EndpointBalanceUtil.getSubgraphUtilization(subgraphName);
-    const failedEndpoints = [];
-    const unsyncdEndpoints = [];
-    const staleVersionEndpoints = [];
+    const issueEndpoints = [];
     const endpointHistory = [];
     try {
       const result = await this._getReliableResult(
@@ -48,50 +46,30 @@ class SubgraphProxyService {
         query,
         variables,
         minIndexedBlock,
-        failedEndpoints,
-        unsyncdEndpoints,
-        staleVersionEndpoints,
+        issueEndpoints,
         endpointHistory
       );
-      LoggingUtil.logSuccessfulProxy(subgraphName, startTime, startUtilization, endpointHistory, [
-        ...failedEndpoints,
-        ...unsyncdEndpoints,
-        ...staleVersionEndpoints
-      ]);
+      LoggingUtil.logSuccessfulProxy(subgraphName, startTime, startUtilization, endpointHistory, issueEndpoints);
       return result;
     } catch (e) {
-      LoggingUtil.logFailedProxy(subgraphName, startTime, startUtilization, endpointHistory, [
-        ...failedEndpoints,
-        ...unsyncdEndpoints,
-        ...staleVersionEndpoints
-      ]);
+      LoggingUtil.logFailedProxy(subgraphName, startTime, startUtilization, endpointHistory, issueEndpoints);
       throw e;
     }
   }
 
   // Returns a reliable query result with respect to response consistency and api availability.
-  static async _getReliableResult(
-    subgraphName,
-    query,
-    variables,
-    minIndexedBlock,
-    failedEndpoints,
-    unsyncdEndpoints,
-    staleVersionEndpoints,
-    endpointHistory
-  ) {
+  static async _getReliableResult(subgraphName, query, variables, minIndexedBlock, issueEndpoints, endpointHistory) {
     const errors = [];
     const requiredBlock = GraphqlQueryUtil.maxRequestedBlock(query);
     let endpointIndex;
     while (
       (endpointIndex = await EndpointBalanceUtil.chooseEndpoint(
         subgraphName,
-        [...failedEndpoints, ...unsyncdEndpoints, ...staleVersionEndpoints],
-        endpointHistory,
+        issueEndpoints.map((v) => v.index),
+        endpointHistory.map((v) => v.index),
         requiredBlock
       )) !== -1
     ) {
-      endpointHistory.push(endpointIndex);
       let queryResult;
       try {
         const client = await SubgraphClients.makeCallableClient(endpointIndex, subgraphName);
@@ -101,17 +79,19 @@ class SubgraphProxyService {
           break; // Will likely result in rethrowing a different RateLimitError
         }
         if (await this._isRetryableBlockException(e, endpointIndex, subgraphName)) {
+          endpointHistory.push({ index: endpointIndex, decision: 'b' });
           continue;
         } else {
-          failedEndpoints.push(endpointIndex);
-          staleVersionEndpoints.length = 0;
+          endpointHistory.push({ index: endpointIndex, decision: 'e' });
+          issueEndpoints.push({ index: endpointIndex, reason: 'f' });
+          issueEndpoints = issueEndpoints.filter((v) => v.reason !== 's');
           errors.push(e);
         }
       }
 
       if (queryResult) {
         SubgraphState.updateStatesWithResult(endpointIndex, subgraphName, queryResult);
-        for (const failedIndex of failedEndpoints) {
+        for (const failedIndex of issueEndpoints.filter((v) => v.reason === 'f').map((v) => v.index)) {
           SubgraphState.setEndpointHasErrors(failedIndex, subgraphName, true);
         }
 
@@ -121,24 +101,28 @@ class SubgraphProxyService {
           queryResult._meta.block.number < minIndexedBlock &&
           !(await SubgraphState.isInSync(endpointIndex, subgraphName))
         ) {
-          unsyncdEndpoints.push(endpointIndex);
-          staleVersionEndpoints.length = 0;
+          endpointHistory.push({ index: endpointIndex, decision: 'u' });
+          issueEndpoints.push({ index: endpointIndex, reason: 'u' });
+          issueEndpoints = issueEndpoints.filter((v) => v.reason !== 's');
           continue;
           // Avoid stale versions
         } else if (await SubgraphState.isStaleVersion(endpointIndex, subgraphName)) {
           // Note that an old version won't be stale if the newer version failed/is out of sync
-          staleVersionEndpoints.push(endpointIndex);
+          endpointHistory.push({ index: endpointIndex, decision: 's' });
+          issueEndpoints.push({ index: endpointIndex, reason: 's' });
           continue;
         }
 
         if (queryResult._meta.block.number >= SubgraphState.getLatestBlock(subgraphName)) {
+          endpointHistory.push({ index: endpointIndex, decision: 'a' });
           return queryResult;
         }
         // The endpoint is in sync, but a more recent response had previously been given, either for this endpoint or
         // another. Do not accept this response. A valid response is expected on the next attempt
+        endpointHistory.push({ index: endpointIndex, decision: 'w' });
       }
     }
-    await this._throwFailureReason(subgraphName, errors, failedEndpoints, unsyncdEndpoints, staleVersionEndpoints);
+    await this._throwFailureReason(subgraphName, errors, issueEndpoints);
   }
 
   // Identifies whether the failure is recoverable, due to response being behind an explicitly requested block.
@@ -172,7 +156,13 @@ class SubgraphProxyService {
   }
 
   // Throws an exception based on the failure reason
-  static async _throwFailureReason(subgraphName, errors, failedEndpoints, unsyncdEndpoints, staleVersionEndpoints) {
+  static async _throwFailureReason(subgraphName, errors, issueEndpoints) {
+    const [failedEndpoints, unsyncdEndpoints, staleVersionEndpoints] = [
+      issueEndpoints.filter((v) => v.reason === 'f'),
+      issueEndpoints.filter((v) => v.reason === 'u'),
+      issueEndpoints.filter((v) => v.reason === 's')
+    ];
+
     const endpointsAttempted = failedEndpoints.length + unsyncdEndpoints.length + staleVersionEndpoints.length;
     if (endpointsAttempted < EnvUtil.endpointsForSubgraph(subgraphName).length) {
       // If any of the endpoints were not attempted, assume this is a rate limiting issue.

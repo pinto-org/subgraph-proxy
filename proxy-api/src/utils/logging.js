@@ -40,14 +40,16 @@ class LoggingUtil {
     if (subgraphName.length > this.longestEncounteredName) {
       this.longestEncounteredName = subgraphName.length;
     }
-    const toEndpoint = usedEndpoint !== undefined ? `to e-${usedEndpoint} ` : ' ';
+    const toEndpoint = usedEndpoint !== undefined ? `to e-${usedEndpoint.index} ` : ' ';
 
     const timeElapsed = `${new Date() - startTime}ms`.padStart(6);
     const subgraphAndTime =
       `${subgraphName.padEnd(this.longestEncounteredName, '-')} ${`${toEndpoint}after ${timeElapsed}`.padStart(19, '-')}`.padEnd(
         40
       );
-    const steps = (`Steps[${blacklist.join(',')}]`.padEnd(10) + `: ${requestHistory.join(',')}`).padEnd(25);
+    const historyStrs = requestHistory.map((e) => `${e.index}${e.decision}`);
+    const blacklistStrs = blacklist.map((e) => `${e.index}${e.reason}`);
+    const steps = (`Steps[${blacklistStrs.join(',')}]`.padEnd(10) + `: ${historyStrs.join(',')}`).padEnd(25);
     const utilization = `Load: ${this._formatUtilizationString(startUtilization)}`;
     return `${new Date().toISOString()} ${type}: ${subgraphAndTime} | ${steps} | ${utilization}`;
   }
