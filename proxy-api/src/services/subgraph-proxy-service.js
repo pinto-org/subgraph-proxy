@@ -52,6 +52,13 @@ class SubgraphProxyService {
 
   // Returns a reliable query result with respect to response consistency and api availability.
   static async _getReliableResult(subgraphName, query, variables, minIndexedBlock, stepRecorder) {
+    // Add a brief delay if all endpoints have been tried; the request is not being dropped
+    const delayRetry = async () => {
+      if (stepRecorder.hasTriedEachEndpoint(subgraphName)) {
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+      }
+    };
+
     const errors = [];
     const requiredBlock = GraphqlQueryUtil.maxRequestedBlock(query);
     let endpointIndex;
@@ -74,6 +81,7 @@ class SubgraphProxyService {
         try {
           if (await this._isRetryableBlockException(e, endpointIndex, subgraphName)) {
             stepRecorder.behindButRetryable(endpointIndex);
+            await delayRetry();
             continue;
           } else {
             stepRecorder.failed(endpointIndex);
@@ -114,10 +122,7 @@ class SubgraphProxyService {
         // another. Do not accept this response. A valid response is expected on the next attempt
         stepRecorder.wobbled(endpointIndex);
 
-        // Add a brief delay if all endpoints have been tried; the request is not being dropped
-        if (stepRecorder.hasTriedEachEndpoint(subgraphName)) {
-          await new Promise((resolve) => setTimeout(resolve, 1000));
-        }
+        await delayRetry();
       }
     }
     await this._throwFailureReason(subgraphName, errors, stepRecorder);
