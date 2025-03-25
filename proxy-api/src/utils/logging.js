@@ -20,7 +20,7 @@ class LoggingUtil {
 
   static async logFailedProxy(subgraphName, startTime, startUtilization, requestHistory, blacklist) {
     console.log(
-      await this._formatLog('<failure>', subgraphName, startTime, startUtilization, blacklist, requestHistory)
+      await this._formatLog('<failure>', subgraphName, startTime, startUtilization, requestHistory, blacklist)
     );
   }
 

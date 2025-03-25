@@ -104,7 +104,7 @@ class EnvUtil {
   }
 
   static getStatusCheckMaxUtilization() {
-    return parseFloat(process.env?.STATUS_CHECK_MAX_UTILIZATION ?? 0);
+    return parseFloat(process.env?.STATUS_CHECK_MAX_UTILIZATION ?? '0');
   }
 
   static allowUnsyncd() {
