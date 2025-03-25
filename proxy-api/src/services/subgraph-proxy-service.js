@@ -109,8 +109,10 @@ class SubgraphProxyService {
         // another. Do not accept this response. A valid response is expected on the next attempt
         stepRecorder.wobbled(endpointIndex);
 
-        // TODO
-        // Add a brief delay if all endpoints have been tried but the request is not being dropped
+        // Add a brief delay if all endpoints have been tried; the request is not being dropped
+        if (stepRecorder.hasTriedEachEndpoint(subgraphName)) {
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+        }
       }
     }
     await this._throwFailureReason(subgraphName, errors, stepRecorder);

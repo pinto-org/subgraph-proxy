@@ -1,3 +1,5 @@
+const EnvUtil = require('../env');
+
 class EndpointHistory {
   constructor() {
     this.endpointHistory = [];
@@ -11,13 +13,13 @@ class EndpointHistory {
   failed(index) {
     this.endpointHistory.push({ index, decision: 'e' });
     this.issueEndpoints.push({ index, reason: 'f' });
-    this.issueEndpoints = issueEndpoints.filter((v) => v.reason !== 's');
+    this.issueEndpoints = this.issueEndpoints.filter((v) => v.reason !== 's');
   }
 
   unsyncd(index) {
     this.endpointHistory.push({ index, decision: 'u' });
     this.issueEndpoints.push({ index, reason: 'u' });
-    this.issueEndpoints = issueEndpoints.filter((v) => v.reason !== 's');
+    this.issueEndpoints = this.issueEndpoints.filter((v) => v.reason !== 's');
   }
 
   stale(index) {
@@ -51,6 +53,11 @@ class EndpointHistory {
 
   getStaleEndpoints() {
     return this.issueEndpoints.filter((v) => v.reason === 's').map((v) => v.index);
+  }
+
+  hasTriedEachEndpoint(subgraphName) {
+    const endpoints = EnvUtil.endpointsForSubgraph(subgraphName);
+    return endpoints.every((e) => this.endpointHistory.some((v) => v.index === e));
   }
 }
 module.exports = EndpointHistory;
