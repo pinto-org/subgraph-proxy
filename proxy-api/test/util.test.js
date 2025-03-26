@@ -18,7 +18,9 @@ describe('Utils', () => {
 
   describe('Query manipulation tests', () => {
     test('Add and removes extra metadata from request/response', async () => {
-      const spy = jest.spyOn(SubgraphProxyService, '_getQueryResult').mockResolvedValueOnce(beanResponse);
+      const spy = jest
+        .spyOn(SubgraphProxyService, '_getQueryResult')
+        .mockResolvedValueOnce({ data: beanResponse, endpointIndex: 0 });
       const query = gql`
         {
           beanCrosses(first: 5) {
@@ -41,7 +43,9 @@ describe('Utils', () => {
     });
 
     test('Does not remove explicitly requested metadata', async () => {
-      const spy = jest.spyOn(SubgraphProxyService, '_getQueryResult').mockResolvedValueOnce(beanResponse);
+      const spy = jest
+        .spyOn(SubgraphProxyService, '_getQueryResult')
+        .mockResolvedValueOnce({ data: beanResponse, endpointIndex: 0 });
       const query = gql`
         {
           _meta {

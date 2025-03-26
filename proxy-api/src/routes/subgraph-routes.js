@@ -17,6 +17,8 @@ router.post(':subgraphName', async (ctx) => {
   ctx.set('X-Version', proxiedResult.meta.version);
   ctx.set('X-Deployment', proxiedResult.meta.deployment);
   ctx.set('X-Chain', proxiedResult.meta.chain);
+  ctx.set('X-Indexed-Block', proxiedResult.meta.indexedBlock);
+  ctx.set('X-Endpoint', proxiedResult.meta.endpointIndex);
 
   ctx.body = {
     data: proxiedResult.body

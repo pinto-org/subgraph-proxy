@@ -18,20 +18,28 @@ class SubgraphProxyService {
     EnvUtil.throwOnInvalidName(subgraphName);
     const minIndexedBlock = GraphqlQueryUtil.minNeededBlock(originalQuery);
     const queryWithMetadata = GraphqlQueryUtil.addMetadataToQuery(originalQuery);
-    const queryResult = await this._getQueryResult(subgraphName, queryWithMetadata, variables, minIndexedBlock);
+    const { data, endpointIndex } = await this._getQueryResult(
+      subgraphName,
+      queryWithMetadata,
+      variables,
+      minIndexedBlock
+    );
 
-    const version = queryResult.version.versionNumber;
-    const deployment = queryResult._meta.deployment;
-    const chain = queryResult.version.chain;
+    const version = data.version.versionNumber;
+    const deployment = data._meta.deployment;
+    const chain = data.version.chain;
+    const indexedBlock = data._meta.block.number;
 
-    const result = GraphqlQueryUtil.removeUnrequestedMetadataFromResult(queryResult, originalQuery);
+    const body = GraphqlQueryUtil.removeUnrequestedMetadataFromResult(data, originalQuery);
     return {
       meta: {
         version,
         deployment,
-        chain
+        chain,
+        indexedBlock,
+        endpointIndex
       },
-      body: result
+      body
     };
   }
 
@@ -55,7 +63,10 @@ class SubgraphProxyService {
     // Add a brief delay if all endpoints have been tried; the request is not being dropped
     const delayRetry = async () => {
       if (stepRecorder.hasTriedEachEndpoint(subgraphName)) {
-        await new Promise((resolve) => setTimeout(resolve, 1000));
+        // This implementation is not perfect since ideally it would delay only once after trying each
+        // endpoint, but in practice this is tough to implement since the endpoint balancer may be unpredictable.
+        // Thus a low timeout delay is chosen.
+        await new Promise((resolve) => setTimeout(resolve, 500));
       }
     };
 
@@ -116,7 +127,10 @@ class SubgraphProxyService {
 
         if (queryResult._meta.block.number >= SubgraphState.getLatestBlock(subgraphName)) {
           stepRecorder.accepted(endpointIndex);
-          return queryResult;
+          return {
+            data: queryResult,
+            endpointIndex
+          };
         }
         // The endpoint is in sync, but a more recent response had previously been given, either for this endpoint or
         // another. Do not accept this response. A valid response is expected on the next attempt
