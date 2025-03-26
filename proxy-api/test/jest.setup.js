@@ -28,3 +28,5 @@ jest.mock('../src/datasources/evm-providers', () => {
 jest.mock('../src/utils/discord');
 // Disable LoggingUtil logs
 jest.mock('../src/utils/logging');
+
+console.log = () => {};

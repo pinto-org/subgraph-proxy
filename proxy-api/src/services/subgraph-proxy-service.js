@@ -126,6 +126,12 @@ class SubgraphProxyService {
         }
 
         if (queryResult._meta.block.number >= SubgraphState.getLatestBlock(subgraphName)) {
+          if (errors.length > 0) {
+            // If there were any errors before an accepted response, log them
+            console.log(
+              `Accepted request, but one endpoint failed with message: ${errors[0].message}\nquery: ${query}`
+            );
+          }
           stepRecorder.accepted(endpointIndex);
           return {
             data: queryResult,
