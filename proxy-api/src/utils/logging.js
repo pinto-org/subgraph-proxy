@@ -1,13 +1,15 @@
+const GraphqlQueryUtil = require('./graph-query');
 const EndpointBalanceUtil = require('./load/endpoint-balance');
 
 class LoggingUtil {
   // Used to determine how much whitespace should pad the start of the subgraph name
   static longestEncounteredName = 0;
 
-  static async logSuccessfulProxy(subgraphName, startTime, startUtilization, endpointHistory) {
+  static async logSuccessfulProxy(query, subgraphName, startTime, startUtilization, endpointHistory) {
     console.log(
       await this._formatLog(
         '[success]',
+        query,
         subgraphName,
         startTime,
         startUtilization,
@@ -18,10 +20,11 @@ class LoggingUtil {
     );
   }
 
-  static async logFailedProxy(subgraphName, startTime, startUtilization, endpointHistory) {
+  static async logFailedProxy(query, subgraphName, startTime, startUtilization, endpointHistory) {
     console.log(
       await this._formatLog(
         '<failure>',
+        query,
         subgraphName,
         startTime,
         startUtilization,
@@ -37,6 +40,7 @@ class LoggingUtil {
   // 2024-08-24T01:17:41.354Z <failure>: basin---------- ------ after  141ms | Steps: 0 | Load: e-0: 33%
   static async _formatLog(
     type,
+    query,
     subgraphName,
     startTime,
     startUtilization,
@@ -49,6 +53,7 @@ class LoggingUtil {
     }
     const toEndpoint = usedEndpoint !== undefined ? `to e-${usedEndpoint.index} ` : ' ';
 
+    const queryFeatures = GraphqlQueryUtil.queryFeaturesString(query).padEnd(12);
     const timeElapsed = `${new Date() - startTime}ms`.padStart(6);
     const subgraphAndTime =
       `${subgraphName.padEnd(this.longestEncounteredName, '-')} ${`${toEndpoint}after ${timeElapsed}`.padStart(19, '-')}`.padEnd(
@@ -58,7 +63,7 @@ class LoggingUtil {
     const blacklistStrs = blacklist.map((e) => `${e.index}${e.reason}`);
     const steps = (`Steps[${blacklistStrs.join(',')}]`.padEnd(10) + `: ${historyStrs.join(',')}`).padEnd(40);
     const utilization = `Load: ${this._formatUtilizationString(startUtilization)}`;
-    return `${new Date().toISOString()} ${type}: ${subgraphAndTime} | ${steps} | ${utilization}`;
+    return `${new Date().toISOString()} ${type}: ${subgraphAndTime} | ${steps} | ${queryFeatures} | ${utilization}`;
   }
 
   static _formatUtilizationString(utilization) {

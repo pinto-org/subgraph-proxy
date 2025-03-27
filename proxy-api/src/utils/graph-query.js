@@ -68,17 +68,22 @@ class GraphqlQueryUtil {
     return Math.max(...blocks);
   }
 
-  // Returns true if this query uses the time travel feature (i.e. explicit block)
-  static usesTimeTravel(originalQuery) {
-    // TODO
+  // Returns a string representing the various features used in this query
+  static queryFeaturesString(query) {
+    let features = '';
+    features += /\([^\(\)]*where[^\(\)]*\)/.test(query) ? 'whr' : '   ';
+    features += /\([^\(\)]*block\s*:\s*\{\s*number(?:_gte)?\s*:\s*\d+\s*\}[^\(\)]*\)/.test(query) ? 'blk' : '   ';
+    features += /\([^\(\)]*orderBy[^\(\)]*\)/.test(query) ? 'srt' : '   ';
+    features += /\([^\(\)]*skip[^\(\)]*\)/.test(query) ? 'skp' : '   ';
+    return features;
   }
 
-  static _includesMeta(originalQuery) {
-    return /_meta\s*\{/.test(originalQuery);
+  static _includesMeta(query) {
+    return /_meta\s*\{/.test(query);
   }
 
-  static _includesVersion(originalQuery) {
-    return /version\s*\(\s*id\s*:\s*"subgraph"\s*\)\s*\{/.test(originalQuery);
+  static _includesVersion(query) {
+    return /version\s*\(\s*id\s*:\s*"subgraph"\s*\)\s*\{/.test(query);
   }
 }
 

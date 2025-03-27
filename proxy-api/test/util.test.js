@@ -153,4 +153,40 @@ describe('Utils', () => {
       });
     });
   });
+
+  test('Identifies query features', () => {
+    const features1 = GraphqlQueryUtil.queryFeaturesString(`
+        {
+          well(
+            id: "0x3e1133aC082716DDC3114bbEFEeD8B1731eA9cb1"
+            block: {number: 24622961}
+          )
+        }`);
+    expect(['blk'].every((str) => features1.includes(str))).toBeTruthy();
+
+    const features2 = GraphqlQueryUtil.queryFeaturesString(`
+        {
+          wells(
+            where: {field: value}
+            orderBy: field
+            orderDirection: asc
+          )
+        }`);
+    expect(['whr', 'srt'].every((str) => features2.includes(str))).toBeTruthy();
+
+    const features3 = GraphqlQueryUtil.queryFeaturesString(`
+      {
+        wells(
+          skip: 50
+          block: {number: 24622961}
+        )
+      }`);
+    expect(['blk', 'skp'].every((str) => features3.includes(str))).toBeTruthy();
+
+    const noFeatures = GraphqlQueryUtil.queryFeaturesString(`
+      {
+        wells() { id }
+      }`);
+    expect(['whr', 'blk', 'srt', 'skp'].every((str) => !noFeatures.includes(str))).toBeTruthy();
+  });
 });

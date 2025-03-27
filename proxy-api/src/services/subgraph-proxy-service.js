@@ -50,10 +50,10 @@ class SubgraphProxyService {
     const endpointHistory = new EndpointHistory();
     try {
       const result = await this._getReliableResult(subgraphName, query, variables, requiredBlock, endpointHistory);
-      LoggingUtil.logSuccessfulProxy(subgraphName, startTime, startUtilization, endpointHistory);
+      LoggingUtil.logSuccessfulProxy(query, subgraphName, startTime, startUtilization, endpointHistory);
       return result;
     } catch (e) {
-      LoggingUtil.logFailedProxy(subgraphName, startTime, startUtilization, endpointHistory);
+      LoggingUtil.logFailedProxy(query, subgraphName, startTime, startUtilization, endpointHistory);
       throw e;
     }
   }
