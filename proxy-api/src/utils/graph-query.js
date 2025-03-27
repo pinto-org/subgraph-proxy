@@ -56,6 +56,7 @@ class GraphqlQueryUtil {
         }
         return `(${Number.MAX_SAFE_INTEGER})`;
       })
+      .replace(/_meta\s*{/, `_meta(0) {`)
       .replace(/(\w+)\s*{/, `$1(${Number.MAX_SAFE_INTEGER}) {`);
 
     // Remove everything between all remaining {}

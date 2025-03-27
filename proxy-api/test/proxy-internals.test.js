@@ -228,12 +228,12 @@ describe('Subgraph Proxy - Core', () => {
         .spyOn(SubgraphClients, 'makeCallableClient')
         .mockImplementationOnce(async () => async () => {
           throw new Error(
-            `has only indexed up to block number 20580123 and data for block number ${responseBlock} is therefore not yet available`
+            `has only indexed up to block number 20581042 and data for block number ${responseBlock} is therefore not yet available`
           );
         })
         .mockImplementationOnce(async () => async () => {
           throw new Error(
-            `has only indexed up to block number 20580123 and data for block number ${responseBlock} is therefore not yet available`
+            `has only indexed up to block number 20581042 and data for block number ${responseBlock} is therefore not yet available`
           );
         })
         .mockResolvedValueOnce(async () => beanResponse);
@@ -275,6 +275,34 @@ describe('Subgraph Proxy - Core', () => {
       expect(EndpointBalanceUtil.chooseEndpoint).toHaveBeenCalledTimes(4);
       expect(endpointArgCapture[2]).toEqual(['bean', [], [0], null]);
       expect(endpointArgCapture[3]).toEqual(['bean', [], [0, 1], null]);
+    });
+    test('Does not retry endpoints with block error if they are out of sync', async () => {
+      jest
+        .spyOn(EndpointBalanceUtil, 'chooseEndpoint')
+        .mockReset()
+        .mockImplementationOnce((...args) => captureAndReturn(endpointArgCapture, 0, ...args))
+        .mockImplementationOnce((...args) => captureAndReturn(endpointArgCapture, 1, ...args))
+        .mockImplementationOnce((...args) => captureAndReturn(endpointArgCapture, -1, ...args));
+
+      const indexedBlock = 500;
+      const minRequiredBlock = 1000;
+      jest
+        .spyOn(SubgraphClients, 'makeCallableClient')
+        .mockImplementationOnce(async () => async () => {
+          throw new Error(
+            `has only indexed up to block number ${indexedBlock} and data for block number ${minRequiredBlock} is therefore not yet available`
+          );
+        })
+        .mockImplementationOnce(async () => async () => {
+          throw new Error(
+            `has only indexed up to block number ${indexedBlock} and data for block number ${minRequiredBlock} is therefore not yet available`
+          );
+        });
+
+      await expect(_getQueryResult(minRequiredBlock)).rejects.toThrow();
+      expect(EndpointBalanceUtil.chooseEndpoint).toHaveBeenCalledTimes(3);
+      expect(endpointArgCapture[1]).toEqual(['bean', [0], [0], minRequiredBlock]);
+      expect(endpointArgCapture[2]).toEqual(['bean', [0, 1], [0, 1], minRequiredBlock]);
     });
   });
 

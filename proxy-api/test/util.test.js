@@ -121,6 +121,38 @@ describe('Utils', () => {
         ).toBe(24622961);
       });
 
+      test('Always allows _meta entity', () => {
+        expect(
+          GraphqlQueryUtil.requiredIndexedBlock(`
+          {
+            _meta {
+              block {
+                number
+              }
+            }
+          }
+          `)
+        ).toBe(0);
+
+        expect(
+          GraphqlQueryUtil.requiredIndexedBlock(`
+          {
+            _meta {
+              block {
+                number
+              }
+            }
+            top(block: {number: 123}) {
+              id
+              nested(where: test) {
+                id
+              }
+            }
+          }
+          `)
+        ).toBe(123);
+      });
+
       test('Works with nested entity access', () => {
         expect(
           GraphqlQueryUtil.requiredIndexedBlock(`

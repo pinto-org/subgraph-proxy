@@ -89,9 +89,17 @@ class SubgraphProxyService {
           break; // Will likely result in rethrowing a different RateLimitError
         }
         try {
-          if (await this._isRetryableBlockException(e, endpointIndex, subgraphName)) {
-            stepRecorder.behindButRetryable(endpointIndex);
-            await delayRetry();
+          // Identify whether the exception was related to the block number requested
+          const failedBlock = await this._failedBlockException(e, endpointIndex, subgraphName);
+          if (failedBlock) {
+            if (failedBlock > SubgraphState.getEndpointBlock(endpointIndex, subgraphName) + 50) {
+              // User requested block that has not been indexed yet
+              stepRecorder.unsyncd(endpointIndex);
+            } else {
+              // Endpoint is behind but not out of sync
+              stepRecorder.behindButRetryable(endpointIndex);
+              await delayRetry();
+            }
             continue;
           } else {
             stepRecorder.failed(endpointIndex);
@@ -147,7 +155,7 @@ class SubgraphProxyService {
     await this._throwFailureReason(subgraphName, errors, stepRecorder);
   }
 
-  // Identifies whether the failure is recoverable, due to response being behind an explicitly requested block.
+  // Identifies whether the failure is due to the indexed block - the response being behind an explicitly requested block.
   // There is also a type of block exception where the requested block is earlier than the start of indexing.
   // Sample error messages:
   // alchemy:
@@ -156,22 +164,27 @@ class SubgraphProxyService {
   // dnet:
   // "Unavailable(missing block: 28068745, latest: 28068741)"
   // "bad query: bad query: requested block 29, before minimum `startBlock` of manifest 22622961"
-  static async _isRetryableBlockException(e, endpointIndex, subgraphName) {
+  static async _failedBlockException(e, endpointIndex, subgraphName) {
     const matchFuture =
-      e.message.match(/indexed up to block number \d+ and data for block number (\d+) is therefore/) ??
-      e.message.match(/Unavailable\(missing block: (\d+), latest: \d+\)/);
+      e.message.match(/indexed up to block number (\d+) and data for block number (\d+) is therefore/) ??
+      e.message.match(/Unavailable\(missing block: (\d+), latest: (\d+)\)/);
     if (matchFuture) {
-      const requestedBlock = parseInt(matchFuture[1]);
+      const blocks = [parseInt(matchFuture[1]), parseInt(matchFuture[2])];
+      const indexedBlock = Math.min(...blocks);
+      const requestedBlock = Math.max(...blocks);
+
+      SubgraphState.setEndpointBlock(endpointIndex, subgraphName, indexedBlock);
       const chain = SubgraphState.getEndpointChain(endpointIndex, subgraphName);
       if (requestedBlock > (await ChainState.getChainHead(chain)) + 5) {
-        // User requested a future block. This is not allowed
+        // User requested a future block. This is never allowed
         throw new RequestError(
           `The requested block ${requestedBlock} is invalid for chain ${chain} (chain head is ${await ChainState.getChainHead(chain)}).`
         );
       }
-      return true;
+      return requestedBlock;
     }
 
+    // Requesting blocks before indexing starts is never allowed
     const matchPast =
       e.message.match(/only has data starting at block number (\d+) and data for block number (\d+) is therefore/) ??
       e.message.match(/bad query: bad query: requested block (\d+), before minimum `startBlock` of manifest (\d+)/);
@@ -184,7 +197,6 @@ class SubgraphProxyService {
         `The requested block ${requestedBlock} is smaller than the earliest accessible block for ${subgraphName}: ${earliestBlock}.`
       );
     }
-    return false;
   }
 
   // Throws an exception based on the failure reason
@@ -251,8 +263,9 @@ class SubgraphProxyService {
         throw new RequestError(errors[0].message);
       }
     } else if (unsyncdEndpoints.length > 0) {
-      DiscordUtil.sendWebhookMessage(`Subgraph ${subgraphName} has fallen behind.`);
-      throw new EndpointError('Subgraph has not yet indexed up to the latest block.');
+      const indexedBlock = SubgraphState.getLatestBlock(subgraphName);
+      DiscordUtil.sendWebhookMessage(`Subgraph ${subgraphName} has fallen behind (currently at ${indexedBlock}).`);
+      throw new EndpointError(`Subgraph has not indexed up to the latest block (currently at ${indexedBlock}).`);
     }
   }
 }
