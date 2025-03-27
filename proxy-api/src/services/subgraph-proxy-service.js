@@ -191,8 +191,8 @@ class SubgraphProxyService {
     if (matchPast) {
       // Blocks are provided in reverse order for the two endpoint types
       const blocks = [parseInt(matchPast[1]), parseInt(matchPast[2])];
-      const earliestBlock = Math.min(...blocks);
-      const requestedBlock = Math.max(...blocks);
+      const requestedBlock = Math.min(...blocks);
+      const earliestBlock = Math.max(...blocks);
       throw new RequestError(
         `The requested block ${requestedBlock} is smaller than the earliest accessible block for ${subgraphName}: ${earliestBlock}.`
       );
