@@ -32,27 +32,45 @@ class GraphqlQueryUtil {
     return result;
   }
 
-  // Returns the maximum of the explicitly requested blocks, if any. Returns undefined if none exist.
-  static maxRequestedBlock(originalQuery) {
-    const regex = /block\s*:\s*\{\s*number\s*:\s*(\d+)\s*\}/g;
-    let match;
-    let result = null;
-    while ((match = regex.exec(originalQuery)) !== null) {
-      result = Math.max(result, parseInt(match[1]));
-    }
-    return result;
-  }
-
-  // Returns the minimum block that must be indexed for this query to be responded to.
-  // Currently considers introspection only.
-  // Future work includes analyzing individual requested entities and whether they have a block number provided.
-  static minNeededBlock(originalQuery) {
+  // Returns the minimum block that needs to have been indexed for this request to be serviceable.
+  // Returns 0 for all introspection requests (always allow reply).
+  // Returns `Number.MAX_SAFE_INTEGER` for requests that require the latest available data.
+  static requiredIndexedBlock(originalQuery) {
     const introspectionRegex = /\s*(?:__schema|__type)\s*{/;
     if (introspectionRegex.test(originalQuery)) {
-      // Always respond to an introspection request regardless of indexing progress
       return 0;
     }
-    return Number.MAX_SAFE_INTEGER;
+
+    // Format the query such that its simply of the form entity(block)
+    let replaced = originalQuery
+      .replace(/^\s*{\s*\n?/, '') // remove the first `{`
+      .replace(/\n?\s*}\s*$/, ''); // remove the last `}`
+
+    // Simplify block selectors to an integer value. Insert large value if none was requested
+    const blockRegex = /block\s*:\s*\{\s*number\s*:\s*(\d+)\s*\}/;
+    replaced = replaced
+      .replace(/\(([^()]*)\)/g, (match, inner) => {
+        let blockMatch;
+        if ((blockMatch = blockRegex.exec(inner)) !== null) {
+          return `(${parseInt(blockMatch[1])})`;
+        }
+        return `(${Number.MAX_SAFE_INTEGER})`;
+      })
+      .replace(/(\w+)\s*{/, `$1(${Number.MAX_SAFE_INTEGER}) {`);
+
+    // Remove everything between all remaining {}
+    while (/{/.test(replaced)) {
+      replaced = replaced.replace(/{[^{}]*}/g, '');
+    }
+
+    // Assess all numeric values inside ()
+    const blocks = [...replaced.matchAll(/\(\s*(\d+)\s*\)/g)].map((match) => parseInt(match[1]));
+    return Math.max(...blocks);
+  }
+
+  // Returns true if this query uses the time travel feature (i.e. explicit block)
+  static usesTimeTravel(originalQuery) {
+    // TODO
   }
 
   static _includesMeta(originalQuery) {

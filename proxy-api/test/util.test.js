@@ -34,7 +34,7 @@ describe('Utils', () => {
         'bean',
         GraphqlQueryUtil.addMetadataToQuery(query),
         undefined,
-        GraphqlQueryUtil.minNeededBlock(query)
+        GraphqlQueryUtil.requiredIndexedBlock(query)
       );
       expect(result.meta.deployment).toEqual('QmXXZrhjqb4ygSWVgkPYBWJ7AzY4nKEUqiN5jnDopWBSCD');
       expect(result.body.beanCrosses.length).toEqual(5);
@@ -64,48 +64,12 @@ describe('Utils', () => {
         'bean',
         GraphqlQueryUtil.addMetadataToQuery(query),
         undefined,
-        GraphqlQueryUtil.minNeededBlock(query)
+        GraphqlQueryUtil.requiredIndexedBlock(query)
       );
       expect(result.meta.deployment).toEqual('QmXXZrhjqb4ygSWVgkPYBWJ7AzY4nKEUqiN5jnDopWBSCD');
       expect(result.body.beanCrosses.length).toEqual(5);
       expect(result.body._meta.block.number).toEqual(responseBlock);
       expect(result.body.version).toBeUndefined();
-    });
-
-    test('Identifies maximal explicitly requested block', () => {
-      expect(
-        GraphqlQueryUtil.maxRequestedBlock(gql`
-          {
-            fertilizerBalances {
-              amount
-            }
-          }
-        `)
-      ).toEqual(null);
-      expect(
-        GraphqlQueryUtil.maxRequestedBlock(gql`
-          {
-            fertilizerBalances {
-              amount
-            }
-            fields(block: { number: 55 }) {
-              id
-            }
-          }
-        `)
-      ).toEqual(55);
-      expect(
-        GraphqlQueryUtil.maxRequestedBlock(`
-          {
-            fertilizerBalances   (block: { number:\n12345 }) {
-              amount
-            }
-            fields(block: {    number: 55 }) {
-              id
-            }
-          }
-        `)
-      ).toEqual(12345);
     });
 
     test('Check for includes meta/version', () => {
@@ -116,16 +80,77 @@ describe('Utils', () => {
       expect(GraphqlQueryUtil._includesVersion('a  version\n(   id: \n\n"subgraph"){')).toEqual(true);
     });
 
-    test('Identifies introspection queries', () => {
-      expect(GraphqlQueryUtil.minNeededBlock(`{__schema{...}}`)).toEqual(0);
-      expect(
-        GraphqlQueryUtil.minNeededBlock(`{
-          __type
-          {...}
-        }`)
-      ).toEqual(0);
-      expect(GraphqlQueryUtil.minNeededBlock(`{beanstalks{id}}`)).toEqual(Number.MAX_SAFE_INTEGER);
-      expect(GraphqlQueryUtil.minNeededBlock(`{beanstalks{id}} {__schema{...}}`)).toEqual(0);
+    describe('Identifies required indexing progress', () => {
+      test('Identifies introspection queries', () => {
+        expect(GraphqlQueryUtil.requiredIndexedBlock(`{__schema{...}}`)).toEqual(0);
+        expect(
+          GraphqlQueryUtil.requiredIndexedBlock(`{
+            __type
+            {...}
+          }`)
+        ).toEqual(0);
+        expect(GraphqlQueryUtil.requiredIndexedBlock(`{beanstalks{id}}`)).toEqual(Number.MAX_SAFE_INTEGER);
+        expect(GraphqlQueryUtil.requiredIndexedBlock(`{beanstalks{id}} {__schema{...}}`)).toEqual(0);
+      });
+
+      test('Identifies max requested block in query', () => {
+        expect(
+          GraphqlQueryUtil.requiredIndexedBlock(`
+          {
+            latest {
+              id
+            }
+          }
+          `)
+        ).toBe(Number.MAX_SAFE_INTEGER);
+
+        expect(
+          GraphqlQueryUtil.requiredIndexedBlock(`
+          {
+            well(
+              id: "0x3e1133aC082716DDC3114bbEFEeD8B1731eA9cb1"
+              block: {number: 24622961}
+            ) {
+              totalLiquidityUSD
+            }
+            version(id: "subgraph", block: {number: 123}) {
+              versionNumber
+            }
+          }
+          `)
+        ).toBe(24622961);
+      });
+
+      test('Works with nested entity access', () => {
+        expect(
+          GraphqlQueryUtil.requiredIndexedBlock(`
+          {
+            top(block: {number: 123}) {
+              id
+              nested(where: test) {
+                id
+              }
+            }
+          }
+          `)
+        ).toBe(123);
+
+        expect(
+          GraphqlQueryUtil.requiredIndexedBlock(`
+          {
+            top(block: {number: 123}) {
+              id
+              nested(where: test) {
+                id
+              }
+            }
+            latest(id: 10) {
+              id
+            }
+          }
+          `)
+        ).toBe(Number.MAX_SAFE_INTEGER);
+      });
     });
   });
 });

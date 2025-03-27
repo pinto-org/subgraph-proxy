@@ -160,7 +160,7 @@ describe('Subgraph Proxy - Core', () => {
         await expect(_getQueryResult(newDeploymentBlock)).resolves.not.toThrow();
 
         expect(EndpointBalanceUtil.chooseEndpoint).toHaveBeenCalledTimes(1);
-        expect(endpointArgCapture[0]).toEqual(['bean', [], [], null]);
+        expect(endpointArgCapture[0]).toEqual(['bean', [], [], newDeploymentBlock]);
       });
     });
     describe('Old subgraph version is not accepted', () => {

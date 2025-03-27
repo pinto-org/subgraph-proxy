@@ -16,13 +16,13 @@ class SubgraphProxyService {
   // Proxies a subgraph request, accounting for version numbers and indexed blocks
   static async handleProxyRequest(subgraphName, originalQuery, variables) {
     EnvUtil.throwOnInvalidName(subgraphName);
-    const minIndexedBlock = GraphqlQueryUtil.minNeededBlock(originalQuery);
+    const requiredBlock = GraphqlQueryUtil.requiredIndexedBlock(originalQuery);
     const queryWithMetadata = GraphqlQueryUtil.addMetadataToQuery(originalQuery);
     const { data, endpointIndex } = await this._getQueryResult(
       subgraphName,
       queryWithMetadata,
       variables,
-      minIndexedBlock
+      requiredBlock
     );
 
     const version = data.version.versionNumber;
@@ -44,12 +44,12 @@ class SubgraphProxyService {
   }
 
   // Gets the result for this query from one of the available endpoints.
-  static async _getQueryResult(subgraphName, query, variables, minIndexedBlock) {
+  static async _getQueryResult(subgraphName, query, variables, requiredBlock) {
     const startTime = new Date();
     const startUtilization = await EndpointBalanceUtil.getSubgraphUtilization(subgraphName);
     const endpointHistory = new EndpointHistory();
     try {
-      const result = await this._getReliableResult(subgraphName, query, variables, minIndexedBlock, endpointHistory);
+      const result = await this._getReliableResult(subgraphName, query, variables, requiredBlock, endpointHistory);
       LoggingUtil.logSuccessfulProxy(subgraphName, startTime, startUtilization, endpointHistory);
       return result;
     } catch (e) {
@@ -59,7 +59,7 @@ class SubgraphProxyService {
   }
 
   // Returns a reliable query result with respect to response consistency and api availability.
-  static async _getReliableResult(subgraphName, query, variables, minIndexedBlock, stepRecorder) {
+  static async _getReliableResult(subgraphName, query, variables, requiredBlock, stepRecorder) {
     // Add a brief delay if all endpoints have been tried; the request is not being dropped
     const delayRetry = async () => {
       if (stepRecorder.hasTriedEachEndpoint(subgraphName)) {
@@ -71,14 +71,13 @@ class SubgraphProxyService {
     };
 
     const errors = [];
-    const requiredBlock = GraphqlQueryUtil.maxRequestedBlock(query);
     let endpointIndex;
     while (
       (endpointIndex = await EndpointBalanceUtil.chooseEndpoint(
         subgraphName,
         stepRecorder.getIssueIndexes(),
         stepRecorder.getHistoryIndexes(),
-        requiredBlock
+        requiredBlock === Number.MAX_SAFE_INTEGER ? null : requiredBlock
       )) !== -1
     ) {
       let queryResult;
@@ -113,7 +112,7 @@ class SubgraphProxyService {
         // Avoid endpoints that are out of sync unless it is explicitly allowable
         if (
           !EnvUtil.allowUnsyncd() &&
-          queryResult._meta.block.number < minIndexedBlock &&
+          queryResult._meta.block.number < requiredBlock &&
           !(await SubgraphState.isInSync(endpointIndex, subgraphName))
         ) {
           stepRecorder.unsyncd(endpointIndex);
