@@ -22,6 +22,9 @@ class BottleneckLimiters {
           reservoirIncreaseInterval: interval,
           reservoirIncreaseMaximum: maxBurst,
           maxConcurrent: maxBurst,
+          // An ideal implementation would involve two limiters: a burst limiter and a throttle limiter.
+          // The burst limiter would have no minTime as it would allow for making many concurrent requests
+          // when there is initially no traffic. Not necessary to implement at this time.
           minTime: Math.ceil(interval / rqPerInterval)
         })
       );
