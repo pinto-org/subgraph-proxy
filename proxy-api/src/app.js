@@ -25,6 +25,7 @@ async function appStartup() {
 
   app.use(async (ctx, next) => {
     try {
+      console.log('Encountered incoming request');
       await next();
     } catch (err) {
       if (!(err instanceof Error)) {
