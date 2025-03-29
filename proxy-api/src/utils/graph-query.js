@@ -60,8 +60,13 @@ class GraphqlQueryUtil {
       .replace(/(\w+)\s*{/, `$1(${Number.MAX_SAFE_INTEGER}) {`);
 
     // Remove everything between all remaining {}
+    let i = 0;
     while (/{/.test(replaced)) {
       replaced = replaced.replace(/{[^{}]*}/g, '');
+      if (++i === 10) {
+        console.log('Found problematic query!', originalQuery);
+        return Number.MAX_SAFE_INTEGER;
+      }
     }
 
     // Assess all numeric values inside ()
