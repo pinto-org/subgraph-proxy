@@ -64,7 +64,7 @@ class GraphqlQueryUtil {
     while (/{/.test(replaced)) {
       replaced = replaced.replace(/{[^{}]*}/g, '');
       if (++i === 10) {
-        console.log('Found problematic query!', originalQuery);
+        console.log(`${new Date().toISOString()} Found problematic query! ${originalQuery}`);
         return Number.MAX_SAFE_INTEGER;
       }
     }
