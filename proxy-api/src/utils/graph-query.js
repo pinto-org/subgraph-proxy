@@ -43,8 +43,8 @@ class GraphqlQueryUtil {
 
     // Format the query such that its simply of the form entity(block)
     let replaced = originalQuery
-      .replace(/^\s*{\s*\n?/, '') // remove the first `{`
-      .replace(/\n?\s*}\s*$/, ''); // remove the last `}`
+      .replace(/^[^{]*{/, '') // remove the first `{`
+      .replace(/}[^}]*$/, ''); // remove the last `}`
 
     // Simplify block selectors to an integer value. Insert large value if none was requested
     const blockRegex = /block\s*:\s*\{\s*number\s*:\s*(\d+)\s*\}/;
