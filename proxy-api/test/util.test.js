@@ -100,8 +100,7 @@ describe('Utils', () => {
             latest {
               id
             }
-          }
-          `)
+          }`)
         ).toBe(Number.MAX_SAFE_INTEGER);
 
         expect(
@@ -116,8 +115,7 @@ describe('Utils', () => {
             version(id: "subgraph", block: {number: 123}) {
               versionNumber
             }
-          }
-          `)
+          }`)
         ).toBe(24622961);
       });
 
@@ -130,8 +128,7 @@ describe('Utils', () => {
                 number
               }
             }
-          }
-          `)
+          }`)
         ).toBe(0);
 
         expect(
@@ -148,8 +145,7 @@ describe('Utils', () => {
                 id
               }
             }
-          }
-          `)
+          }`)
         ).toBe(123);
       });
 
@@ -163,8 +159,7 @@ describe('Utils', () => {
                 id
               }
             }
-          }
-          `)
+          }`)
         ).toBe(123);
 
         expect(
@@ -179,20 +174,20 @@ describe('Utils', () => {
             latest(id: 10) {
               id
             }
-          }
-          `)
+          }`)
         ).toBe(Number.MAX_SAFE_INTEGER);
       });
 
       test('Works with outer query name', () => {
         expect(
-          GraphqlQueryUtil.requiredIndexedBlock(`query get_last_bean_crosses {
-          beanCrosses(first: 1, orderBy: timestamp, orderDirection: desc) {
-            timestamp
-            above
-            id
-          }
-        }`)
+          GraphqlQueryUtil.requiredIndexedBlock(`
+            query get_last_bean_crosses {
+              beanCrosses(first: 1, orderBy: timestamp, orderDirection: desc) {
+                timestamp
+                above
+                id
+              }
+            }`)
         ).toBe(Number.MAX_SAFE_INTEGER);
       });
     });
