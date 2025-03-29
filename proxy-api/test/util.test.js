@@ -183,6 +183,18 @@ describe('Utils', () => {
           `)
         ).toBe(Number.MAX_SAFE_INTEGER);
       });
+
+      test('Works with outer query name', () => {
+        expect(
+          GraphqlQueryUtil.requiredIndexedBlock(`query get_last_bean_crosses {
+          beanCrosses(first: 1, orderBy: timestamp, orderDirection: desc) {
+            timestamp
+            above
+            id
+          }
+        }`)
+        ).toBe(Number.MAX_SAFE_INTEGER);
+      });
     });
   });
 
