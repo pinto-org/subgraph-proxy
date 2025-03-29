@@ -80,10 +80,6 @@ class SubgraphProxyService {
         requiredBlock === Number.MAX_SAFE_INTEGER ? null : requiredBlock
       )) !== -1
     ) {
-      console.log(`In getResult ${stepRecorder.getHistoryIndexes().length}`);
-      if (stepRecorder.getHistoryIndexes().length > 5) {
-        console.log('Over 5x on query', query);
-      }
       let queryResult;
       try {
         const client = await SubgraphClients.makeCallableClient(endpointIndex, subgraphName);

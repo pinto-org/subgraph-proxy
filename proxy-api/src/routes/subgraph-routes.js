@@ -12,7 +12,6 @@ router.post(':subgraphName', async (ctx) => {
   const subgraphName = ctx.params.subgraphName;
   const body = ctx.request.body;
 
-  console.log('POST request', subgraphName, body.query);
   const proxiedResult = await SubgraphProxyService.handleProxyRequest(subgraphName, body.query, body.variables);
 
   ctx.set('X-Version', proxiedResult.meta.version);
