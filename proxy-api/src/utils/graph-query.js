@@ -60,8 +60,14 @@ class GraphqlQueryUtil {
       .replace(/(\w+)\s*{/, `$1(${Number.MAX_SAFE_INTEGER}) {`);
 
     // Remove everything between all remaining {}
+    let i = 0;
     while (/{/.test(replaced)) {
       replaced = replaced.replace(/{[^{}]*}/g, '');
+      // This will occur when there are multiple top-level {}, such as when fragments are included
+      if (++i >= 5) {
+        console.log(`${new Date().toISOString()} Could not identify min block for query: ${originalQuery}`);
+        return Number.MAX_SAFE_INTEGER;
+      }
     }
 
     // Assess all numeric values inside ()

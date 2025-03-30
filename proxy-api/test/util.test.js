@@ -190,6 +190,62 @@ describe('Utils', () => {
             }`)
         ).toBe(Number.MAX_SAFE_INTEGER);
       });
+
+      test('Fragments dont work but dont break the method', () => {
+        expect(
+          GraphqlQueryUtil.requiredIndexedBlock(`
+            query AllPodListings($first: Int = 1000, $status: MarketStatus = ACTIVE, $maxHarvestableIndex: BigInt!, $skip: Int = 0) {
+              podListings(
+                first: $first
+                skip: $skip
+                where: {status: $status, maxHarvestableIndex_gt: $maxHarvestableIndex, remainingAmount_gt: "100000"}
+                orderBy: index
+                orderDirection: asc
+                block: {number: 123}
+              ) {
+                ...PodListing
+              }
+            }
+
+            fragment PodListing on PodListing {
+              id
+              farmer {
+                id
+              }
+            }`)
+        ).toBe(Number.MAX_SAFE_INTEGER);
+
+        expect(
+          GraphqlQueryUtil.requiredIndexedBlock(`
+            {
+              podListings(
+                block: {number: 500}
+              ) {
+                ...PodListing
+              }
+            }
+
+            fragment PodListing on PodListing {
+              id
+              farmer {
+                id
+              }
+            }`)
+        ).toBe(Number.MAX_SAFE_INTEGER);
+      });
+
+      test('Assigns max value when block number is a parameter', () => {
+        expect(
+          GraphqlQueryUtil.requiredIndexedBlock(`
+            query AllPodListings($block: Int = 1000) {
+              podListings(
+                block: {number: $block}
+              ) {
+                ...PodListing
+              }
+            }`)
+        ).toBe(Number.MAX_SAFE_INTEGER);
+      });
     });
   });
 
