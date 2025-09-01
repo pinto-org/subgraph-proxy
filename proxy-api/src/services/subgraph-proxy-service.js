@@ -11,6 +11,7 @@ const EnvUtil = require('../utils/env');
 const DiscordUtil = require('../utils/discord');
 const SubgraphStatusService = require('./subgraph-status-service');
 const EndpointHistory = require('../utils/load/endpoint-history');
+const FatalEndpointError = require('../error/fatal-endpoint-error');
 
 class SubgraphProxyService {
   // Proxies a subgraph request, accounting for version numbers and indexed blocks
@@ -227,7 +228,7 @@ class SubgraphProxyService {
     } else if (failedEndpoints.length > 0) {
       if (new Date() - SubgraphState.getLatestSubgraphErrorCheck(subgraphName) < 60 * 1000) {
         if (SubgraphState.allHaveErrors(subgraphName)) {
-          throw new EndpointError('Subgraph is unable to process this request and may be offline.');
+          throw new FatalEndpointError('The requested subgraph is currently offline.');
         } else {
           throw new RequestError(errors[0].message);
         }
@@ -257,7 +258,7 @@ class SubgraphProxyService {
         if (!fatalError) {
           console.log(`Failed to retrieve status for ${subgraphName} e-${endpointIndex}.`);
         }
-        throw new EndpointError('Subgraph is unable to process this request and may be offline.');
+        throw new FatalEndpointError('The requested subgraph is currently offline.');
       } else {
         // The endpoint is responsive and therefore the user constructed a bad request
         throw new RequestError(errors[0].message);
