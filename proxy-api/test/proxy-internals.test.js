@@ -15,6 +15,7 @@ const beanOldVersionResponse = require('./mock-responses/beanOldVersion.json');
 const RateLimitError = require('../src/error/rate-limit-error');
 const EnvUtil = require('../src/utils/env');
 const SubgraphStatusService = require('../src/services/subgraph-status-service');
+const FatalEndpointError = require('../src/error/fatal-endpoint-error');
 const responseBlock = beanResponse._meta.block.number;
 const responseBehindBlock = beanBehindResponse._meta.block.number;
 const newDeploymentBlock = beanNewDeploymentResponse._meta.block.number;
@@ -117,7 +118,9 @@ describe('Subgraph Proxy - Core', () => {
       });
       jest.spyOn(SubgraphStatusService, 'checkFatalError').mockResolvedValue('Fatal error string');
 
-      await expect(SubgraphProxyService._getQueryResult('beanstalk', 'graphql query')).rejects.toThrow(EndpointError);
+      await expect(SubgraphProxyService._getQueryResult('beanstalk', 'graphql query')).rejects.toThrow(
+        FatalEndpointError
+      );
       expect(EndpointBalanceUtil.chooseEndpoint).toHaveBeenCalledTimes(4);
       expect(endpointArgCapture[0]).toEqual(['beanstalk', [], [], null]);
       expect(endpointArgCapture[1]).toEqual(['beanstalk', [0], [0], null]);
