@@ -7,6 +7,7 @@ const ENDPOINT_TYPES = process.env.ENDPOINT_TYPES?.split('|');
 const ENDPOINT_RATE_LIMITS = process.env.ENDPOINT_RATE_LIMITS?.split('|').map((sg) =>
   sg.split(',').map((s) => parseInt(s))
 );
+const RATE_LIMIT_TYPE = process.env.RATE_LIMIT_TYPE?.split('|');
 const ENDPOINT_UTILIZATION_PREFERENCE = process.env.ENDPOINT_UTILIZATION_PREFERENCE?.split('|').map((s) =>
   parseFloat(s)
 );
@@ -81,6 +82,10 @@ class EnvUtil {
 
   static getEndpointRateLimits() {
     return ENDPOINT_RATE_LIMITS;
+  }
+
+  static getEndpointRateLimitType(endpointIndex) {
+    return RATE_LIMIT_TYPE[endpointIndex];
   }
 
   static getEndpointUtilizationPreference() {

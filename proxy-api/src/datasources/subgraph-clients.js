@@ -20,7 +20,7 @@ class SubgraphClients {
       const response = await client.request(query, variables);
       return response;
     };
-    const limiterWrapped = await BottleneckLimiters.wrap(endpointIndex, callableClient);
+    const limiterWrapped = await BottleneckLimiters.wrap(endpointIndex, subgraphName, callableClient);
     return limiterWrapped;
   }
 }

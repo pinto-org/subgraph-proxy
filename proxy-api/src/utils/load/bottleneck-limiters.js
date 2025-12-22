@@ -4,7 +4,7 @@ const EnvUtil = require('../env');
 
 class BottleneckLimiters {
   static bottleneckLimiters = [];
-  static maxPeriodicRquests = [];
+  static maxPeriodicRequests = [];
   static maxReservoirSizes = [];
 
   // Create a limiter for each configured endpoint
@@ -15,7 +15,7 @@ class BottleneckLimiters {
         throw new Error('Invalid .env configuration: bottleneck requires rate limit interval divisible by 250.');
       }
 
-      this.bottleneckLimiters.push(
+      const limiterFactory = () =>
         new Bottleneck({
           reservoir: maxBurst,
           reservoirIncreaseAmount: rqPerInterval,
@@ -26,39 +26,52 @@ class BottleneckLimiters {
           // The burst limiter would have no minTime as it would allow for making many concurrent requests
           // when there is initially no traffic. Not necessary to implement at this time.
           minTime: Math.ceil(interval / rqPerInterval)
-        })
-      );
-      this.maxPeriodicRquests.push(rqPerInterval);
+        });
+
+      let makeSubgraphLimiter;
+      if (EnvUtil.getEndpointRateLimitType(i) === 'per-subgraph') {
+        makeSubgraphLimiter = () => limiterFactory();
+      } else {
+        const lim = limiterFactory();
+        makeSubgraphLimiter = () => lim;
+      }
+
+      for (const sgName of EnvUtil.subgraphsForEndpoint(i)) {
+        (this.bottleneckLimiters[i] ??= {})[sgName] = makeSubgraphLimiter();
+      }
+
+      this.bottleneckLimiters.push();
+      this.maxPeriodicRequests.push(rqPerInterval);
       this.maxReservoirSizes.push(maxBurst);
     }
   }
 
-  static async wrap(endpointIndex, fnToWrap) {
-    if (await this.isBurstDepleted(endpointIndex)) {
-      throw new RateLimitError(`Exceeded rate limit for e-${endpointIndex}.`);
+  static async wrap(endpointIndex, subgraphName, fnToWrap) {
+    if (await this.isBurstDepleted(endpointIndex, subgraphName)) {
+      throw new RateLimitError(`Exceeded rate limit for e-${endpointIndex}-${subgraphName}.`);
     }
-    return this.bottleneckLimiters[endpointIndex].wrap(fnToWrap);
+    return this.bottleneckLimiters[endpointIndex][subgraphName].wrap(fnToWrap);
   }
 
-  static async schedule(endpointIndex, fnToSchedule) {
-    if (await this.isBurstDepleted(endpointIndex)) {
-      throw new RateLimitError(`Exceeded rate limit for e-${endpointIndex}.`);
+  static async schedule(endpointIndex, subgraphName, fnToSchedule) {
+    if (await this.isBurstDepleted(endpointIndex, subgraphName)) {
+      throw new RateLimitError(`Exceeded rate limit for e-${endpointIndex}-${subgraphName}.`);
     }
-    return await this.bottleneckLimiters[endpointIndex].schedule(fnToSchedule);
+    return await this.bottleneckLimiters[endpointIndex][subgraphName].schedule(fnToSchedule);
   }
 
-  static async isBurstDepleted(endpointIndex) {
-    return (await this.bottleneckLimiters[endpointIndex].currentReservoir()) === 0;
+  static async isBurstDepleted(endpointIndex, subgraphName) {
+    return (await this.bottleneckLimiters[endpointIndex][subgraphName].currentReservoir()) === 0;
   }
 
   // Returns the utilization as a ratio of current active requests / max rq per interval.
   // Can exceed 100%
-  static async getUtilization(endpointIndex) {
-    const currentReservoir = await this.bottleneckLimiters[endpointIndex].currentReservoir();
+  static async getUtilization(endpointIndex, subgraphName) {
+    const currentReservoir = await this.bottleneckLimiters[endpointIndex][subgraphName].currentReservoir();
     // These aren't necessarily still executing, but they are considered "active" in that they
     // were either scheduled recently or are queued to be executed.
     const activeRequests = this.maxReservoirSizes[endpointIndex] - currentReservoir;
-    return activeRequests / this.maxPeriodicRquests[endpointIndex];
+    return activeRequests / this.maxPeriodicRequests[endpointIndex];
   }
 }
 

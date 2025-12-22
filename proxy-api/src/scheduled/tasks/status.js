@@ -8,7 +8,7 @@ class StatusTask {
   static async checkAll() {
     for (const subgraphName of EnvUtil.getEnabledSubgraphs()) {
       for (const endpointIndex of EnvUtil.endpointsForSubgraph(subgraphName)) {
-        const utilization = await BottleneckLimiters.getUtilization(endpointIndex);
+        const utilization = await BottleneckLimiters.getUtilization(endpointIndex, subgraphName);
         if (utilization <= EnvUtil.getStatusCheckMaxUtilization()) {
           try {
             await SubgraphStatusService.checkFatalError(endpointIndex, subgraphName);
