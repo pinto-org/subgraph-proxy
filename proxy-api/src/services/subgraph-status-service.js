@@ -15,6 +15,8 @@ class SubgraphStatusService {
         const alchemyStatus = await this._getAlchemyStatus(endpointIndex, subgraphName);
         fatalError = alchemyStatus.data.data.indexingStatusForCurrentVersion.fatalError?.message;
         break;
+      case 'ormi':
+        return undefined;
       case 'graph':
         // Graph status endpoint has changed, I couldnt find a realiable alternative.
         // const graphStatus = await this._getGraphStatus(endpointIndex, subgraphName);
@@ -45,7 +47,11 @@ class SubgraphStatusService {
 
   static async _getAlchemyStatus(endpointIndex, subgraphName) {
     const statusUrl = EnvUtil.underlyingUrl(endpointIndex, subgraphName).replace('/api', '/status');
-    const status = await BottleneckLimiters.schedule(endpointIndex, async () => await axios.post(statusUrl));
+    const status = await BottleneckLimiters.schedule(
+      endpointIndex,
+      subgraphName,
+      async () => await axios.post(statusUrl)
+    );
     return status;
   }
 
@@ -60,6 +66,7 @@ class SubgraphStatusService {
 
     const status = await BottleneckLimiters.schedule(
       endpointIndex,
+      subgraphName,
       async () =>
         await axios.post(statusUrl, {
           operationName: 'SubgraphIndexingStatusFatalError',

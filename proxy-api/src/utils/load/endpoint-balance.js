@@ -46,7 +46,7 @@ class EndpointBalanceUtil {
   static async getSubgraphUtilization(subgraphName) {
     const utilization = {};
     for (const endpointIndex of EnvUtil.endpointsForSubgraph(subgraphName)) {
-      utilization[endpointIndex] = await BottleneckLimiters.getUtilization(endpointIndex);
+      utilization[endpointIndex] = await BottleneckLimiters.getUtilization(endpointIndex, subgraphName);
     }
     return utilization;
   }
@@ -56,7 +56,10 @@ class EndpointBalanceUtil {
     let options = [];
     // Remove blacklisted/overutilized endpoints
     for (const endpointIndex of subgraphEndpoints) {
-      if (!(await BottleneckLimiters.isBurstDepleted(endpointIndex)) && !blacklist.includes(endpointIndex)) {
+      if (
+        !(await BottleneckLimiters.isBurstDepleted(endpointIndex, subgraphName)) &&
+        !blacklist.includes(endpointIndex)
+      ) {
         options.push(endpointIndex);
       }
     }
