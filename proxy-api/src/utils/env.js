@@ -17,6 +17,8 @@ const EVM_RPC_URLS = process.env.EVM_RPC_URLS?.split(',');
 
 const ENABLED_CRON_JOBS = process.env.ENABLED_CRON_JOBS?.split(',');
 
+const CACHE_GQL_URL = process.env.CACHE_GQL_URL;
+
 // Validation
 for (const endpointIds of ENDPOINT_SG_IDS) {
   if (endpointIds.length !== ENABLED_SUBGRAPHS.length) {
@@ -30,6 +32,10 @@ if (ENDPOINTS.length !== ENDPOINT_RATE_LIMITS.length || ENDPOINTS.length !== END
 
 if (ENDPOINT_UTILIZATION_PREFERENCE.some((u) => u < 0 || u > 1)) {
   throw new Error('Invalid environment configured: utilization out of range');
+}
+
+if (!CACHE_GQL_URL) {
+  throw new Error('Invalid environment configured: CACHE_GQL_URL is not configured');
 }
 
 class EnvUtil {
@@ -114,6 +120,10 @@ class EnvUtil {
 
   static allowUnsyncd() {
     return process.env?.ALLOW_UNSYNCD === 'true';
+  }
+
+  static getGqlCacheEndpoint() {
+    return CACHE_GQL_URL;
   }
 }
 
