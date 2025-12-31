@@ -1,5 +1,7 @@
 const Router = require('koa-router');
+const axios = require('axios');
 const SubgraphProxyService = require('../services/subgraph-proxy-service');
+const EnvUtil = require('../utils/env');
 
 const router = new Router({
   prefix: '/'
@@ -12,17 +14,24 @@ router.post(':subgraphName', async (ctx) => {
   const subgraphName = ctx.params.subgraphName;
   const body = ctx.request.body;
 
-  const proxiedResult = await SubgraphProxyService.handleProxyRequest(subgraphName, body.query, body.variables);
+  if (subgraphName === 'cache') {
+    const response = await axios.post(`${EnvUtil.getGqlCacheEndpoint()}`, {
+      query: body.query,
+      variables: body.variables
+    });
 
-  ctx.set('X-Version', proxiedResult.meta.version);
-  ctx.set('X-Deployment', proxiedResult.meta.deployment);
-  ctx.set('X-Chain', proxiedResult.meta.chain);
-  ctx.set('X-Indexed-Block', proxiedResult.meta.indexedBlock);
-  ctx.set('X-Endpoint', proxiedResult.meta.endpointIndex);
+    ctx.body = { data: response.data };
+  } else {
+    const proxiedResult = await SubgraphProxyService.handleProxyRequest(subgraphName, body.query, body.variables);
 
-  ctx.body = {
-    data: proxiedResult.body
-  };
+    ctx.set('X-Version', proxiedResult.meta.version);
+    ctx.set('X-Deployment', proxiedResult.meta.deployment);
+    ctx.set('X-Chain', proxiedResult.meta.chain);
+    ctx.set('X-Indexed-Block', proxiedResult.meta.indexedBlock);
+    ctx.set('X-Endpoint', proxiedResult.meta.endpointIndex);
+
+    ctx.body = { data: proxiedResult.body };
+  }
 });
 
 module.exports = router;
