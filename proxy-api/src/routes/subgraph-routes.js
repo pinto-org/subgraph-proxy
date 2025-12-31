@@ -20,7 +20,7 @@ router.post(':subgraphName', async (ctx) => {
       variables: body.variables
     });
 
-    ctx.body = { data: response.data };
+    ctx.body = response.data;
   } else {
     const proxiedResult = await SubgraphProxyService.handleProxyRequest(subgraphName, body.query, body.variables);
 

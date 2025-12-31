@@ -34,8 +34,8 @@ if (ENDPOINT_UTILIZATION_PREFERENCE.some((u) => u < 0 || u > 1)) {
   throw new Error('Invalid environment configured: utilization out of range');
 }
 
-if (!CACHE_API_URL) {
-  throw new Error('Invalid environment configured: CACHE_API_URL is not configured');
+if (!CACHE_GQL_URL) {
+  throw new Error('Invalid environment configured: CACHE_GQL_URL is not configured');
 }
 
 class EnvUtil {
