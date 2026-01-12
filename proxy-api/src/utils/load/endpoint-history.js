@@ -10,9 +10,18 @@ class EndpointHistory {
     this.endpointHistory.push({ index, decision: 'a' });
   }
 
-  failed(index) {
-    this.endpointHistory.push({ index, decision: 'f' });
-    this.issueEndpoints.push({ index, reason: 'f' });
+  failed(index, error) {
+    const errorCode = (() => {
+      if (error?.message?.includes('Store error')) {
+        return '(1)';
+      } else {
+        // This should be temporary so that we can identify the various errors as they occur
+        console.log('Unexpected error:', error?.message);
+        return '(?)';
+      }
+    })();
+    this.endpointHistory.push({ index, decision: `f${errorCode}` });
+    this.issueEndpoints.push({ index, reason: `f${errorCode}` });
     this.issueEndpoints = this.issueEndpoints.filter((v) => v.reason !== 's');
   }
 
@@ -48,15 +57,15 @@ class EndpointHistory {
   }
 
   getFailedEndpoints() {
-    return this.issueEndpoints.filter((v) => v.reason === 'f').map((v) => v.index);
+    return this.issueEndpoints.filter((v) => v.reason.startsWith('f')).map((v) => v.index);
   }
 
   getUnsyncdEndpoints() {
-    return this.issueEndpoints.filter((v) => v.reason === 'u').map((v) => v.index);
+    return this.issueEndpoints.filter((v) => v.reason.startsWith('u')).map((v) => v.index);
   }
 
   getStaleEndpoints() {
-    return this.issueEndpoints.filter((v) => v.reason === 's').map((v) => v.index);
+    return this.issueEndpoints.filter((v) => v.reason.startsWith('s')).map((v) => v.index);
   }
 
   hasTriedEachEndpoint(subgraphName) {

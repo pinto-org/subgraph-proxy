@@ -103,7 +103,7 @@ class SubgraphProxyService {
             }
             continue;
           } else {
-            stepRecorder.failed(endpointIndex);
+            stepRecorder.failed(endpointIndex, e);
             errors.push(e);
           }
         } catch (e2) {
