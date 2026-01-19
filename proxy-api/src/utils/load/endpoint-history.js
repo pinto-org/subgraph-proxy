@@ -21,7 +21,9 @@ class EndpointHistory {
       }
     })();
     this.endpointHistory.push({ index, decision: `f${errorCode}` });
-    this.issueEndpoints.push({ index, reason: `f${errorCode}` });
+    if (errorCode !== '(1)') {
+      this.issueEndpoints.push({ index, reason: `f${errorCode}` });
+    }
     this.issueEndpoints = this.issueEndpoints.filter((v) => v.reason !== 's');
   }
 
@@ -71,6 +73,10 @@ class EndpointHistory {
   hasTriedEachEndpoint(subgraphName) {
     const endpoints = EnvUtil.endpointsForSubgraph(subgraphName);
     return endpoints.every((e) => this.endpointHistory.some((v) => v.index === e));
+  }
+
+  countAttempts(index) {
+    return this.endpointHistory.filter((v) => v.index === index).length;
   }
 }
 module.exports = EndpointHistory;

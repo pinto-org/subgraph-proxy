@@ -60,8 +60,19 @@ describe('Subgraph Proxy - Core', () => {
   });
 
   describe('Core retry logic', () => {
+    let originalSetTimeout;
+
     beforeEach(() => {
       endpointArgCapture = [];
+      // Mock setTimeout to execute immediately
+      originalSetTimeout = global.setTimeout;
+      global.setTimeout = jest.fn((fn, delay) => {
+        // Execute the callback immediately
+        if (typeof fn === 'function') {
+          fn();
+        }
+        return 1; // Return a mock timer ID
+      });
       jest
         .spyOn(EndpointBalanceUtil, 'chooseEndpoint')
         .mockReset()
@@ -71,6 +82,11 @@ describe('Subgraph Proxy - Core', () => {
         .mockImplementationOnce((...args) => captureAndReturn(endpointArgCapture, 0, ...args));
       jest.spyOn(SubgraphState, 'getLatestSubgraphErrorCheck').mockReturnValue(undefined);
       jest.spyOn(SubgraphState, 'getEndpointChain').mockReturnValue('ethereum');
+    });
+
+    afterEach(() => {
+      // Restore setTimeout
+      global.setTimeout = originalSetTimeout;
     });
 
     test('Initial endpoint succeeds', async () => {
