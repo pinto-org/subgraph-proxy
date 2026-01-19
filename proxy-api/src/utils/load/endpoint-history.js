@@ -21,7 +21,9 @@ class EndpointHistory {
       }
     })();
     this.endpointHistory.push({ index, decision: `f${errorCode}` });
-    this.issueEndpoints.push({ index, reason: `f${errorCode}` });
+    if (errorCode !== '(1)') {
+      this.issueEndpoints.push({ index, reason: `f${errorCode}` });
+    }
     this.issueEndpoints = this.issueEndpoints.filter((v) => v.reason !== 's');
   }
 
@@ -53,8 +55,7 @@ class EndpointHistory {
   }
 
   getIssueIndexes() {
-    // Failure due to "Store error" is retryable.
-    return this.issueEndpoints.filter((v) => v.reason !== 'f(1)').map((v) => v.index);
+    return this.issueEndpoints.map((v) => v.index);
   }
 
   getFailedEndpoints() {
