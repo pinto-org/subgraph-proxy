@@ -81,6 +81,11 @@ class SubgraphProxyService {
         requiredBlock === Number.MAX_SAFE_INTEGER ? null : requiredBlock
       )) !== -1
     ) {
+      const indexAttempts = stepRecorder.countAttempts(endpointIndex);
+      if (indexAttempts > 0) {
+        // Add a delay if attempting the same index again
+        await new Promise((resolve) => setTimeout(resolve, Math.pow(2, indexAttempts) * 2000));
+      }
       let queryResult;
       try {
         const client = await SubgraphClients.makeCallableClient(endpointIndex, subgraphName);

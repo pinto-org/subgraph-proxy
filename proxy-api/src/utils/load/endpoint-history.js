@@ -53,7 +53,8 @@ class EndpointHistory {
   }
 
   getIssueIndexes() {
-    return this.issueEndpoints.map((v) => v.index);
+    // Failure due to "Store error" is retryable.
+    return this.issueEndpoints.filter((v) => v.reason !== 'f(1)').map((v) => v.index);
   }
 
   getFailedEndpoints() {
@@ -71,6 +72,10 @@ class EndpointHistory {
   hasTriedEachEndpoint(subgraphName) {
     const endpoints = EnvUtil.endpointsForSubgraph(subgraphName);
     return endpoints.every((e) => this.endpointHistory.some((v) => v.index === e));
+  }
+
+  countAttempts(index) {
+    return this.endpointHistory.filter((v) => v.index === index).length;
   }
 }
 module.exports = EndpointHistory;
